@@ -9,8 +9,9 @@
 	<url>http://maven.apache.org</url>
 
 	<properties>
-		<giraph.version>1.1.0</giraph.version>
-		<hadoop.version>0.20.203.0</hadoop.version>
+		<giraph.version>1.1.0-hadoop2</giraph.version>
+		<mapreduce.version>2.6.0</mapreduce.version>
+		<hadoop.version>2.6.0</hadoop.version>
 		<giraph.scope>compile</giraph.scope>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
@@ -80,52 +81,35 @@
 			</extension>
 		</extensions>
 	</build>
-	<profiles>
-		<profile>
-			<id>hadoop_preyarn</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
-			<properties>
-				<hadoop.version>0.20.203.0</hadoop.version>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-core</artifactId>
-					<version>${hadoop.version}</version>
-					<scope>provided</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-		<profile>
-			<id>hadoop_yarn</id>
-			<properties>
-				<hadoop.version>2.2.0</hadoop.version>
-				<giraph.version>1.1.0-hadoop2</giraph.version>
-			</properties>
-			<dependencies>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-common</artifactId>
-					<version>${hadoop.version}</version>
-					<scope>provided</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-mapreduce-client-common</artifactId>
-					<version>${hadoop.version}</version>
-					<scope>provided</scope>
-				</dependency>
-				<dependency>
-					<groupId>org.apache.hadoop</groupId>
-					<artifactId>hadoop-mapreduce-client-core</artifactId>
-					<version>${hadoop.version}</version>
-					<scope>provided</scope>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
+	<!--<profiles>-->
+		<!--<profile>-->
+			<!--<id>hadoop_yarn</id>-->
+			<!--<properties>-->
+				<!--<hadoop.version>2.6.0</hadoop.version>-->
+				<!--<giraph.version>1.1.0-hadoop2</giraph.version>-->
+			<!--</properties>-->
+			<!--<dependencies>-->
+				<!--<dependency>-->
+					<!--<groupId>org.apache.hadoop</groupId>-->
+					<!--<artifactId>hadoop-common</artifactId>-->
+					<!--<version>${hadoop.version}</version>-->
+					<!--<scope>provided</scope>-->
+				<!--</dependency>-->
+				<!--<dependency>-->
+					<!--<groupId>org.apache.hadoop</groupId>-->
+					<!--<artifactId>hadoop-mapreduce-client-common</artifactId>-->
+					<!--<version>${hadoop.version}</version>-->
+					<!--<scope>provided</scope>-->
+				<!--</dependency>-->
+				<!--<dependency>-->
+					<!--<groupId>org.apache.hadoop</groupId>-->
+					<!--<artifactId>hadoop-mapreduce-client-core</artifactId>-->
+					<!--<version>${hadoop.version}</version>-->
+					<!--<scope>provided</scope>-->
+				<!--</dependency>-->
+			<!--</dependencies>-->
+		<!--</profile>-->
+	<!--</profiles>-->
 
 	<dependencies>
 		<dependency>
@@ -139,19 +123,36 @@
 			<artifactId>mockito-all</artifactId>
 			<version>1.9.5</version>
 		</dependency>
+		<!--<dependency>-->
+			<!--&lt;!&ndash; Giraph must exist in the local repository &ndash;&gt;-->
+			<!--<groupId>org.apache.giraph</groupId>-->
+			<!--<artifactId>giraph-core</artifactId>-->
+			<!--<version>${giraph.version}</version>-->
+			<!--<scope>${giraph.scope}</scope>-->
+		<!--</dependency>-->
+
+
 		<dependency>
-			<!-- Giraph must exist in the local repository -->
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-common</artifactId>
+			<version>${hadoop.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.hadoop</groupId>
+			<artifactId>hadoop-mapreduce-client-core</artifactId>
+			<version>${mapreduce.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.giraph</groupId>
 			<artifactId>giraph-core</artifactId>
 			<version>${giraph.version}</version>
-			<scope>${giraph.scope}</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.giraph</groupId>
-			<artifactId>giraph-examples</artifactId>
-			<version>${giraph.version}</version>
-			<scope>${giraph.scope}</scope>
-		</dependency>
+        <dependency>
+        <groupId>org.apache.giraph</groupId>
+        <artifactId>giraph-examples</artifactId>
+        <version>${giraph.version}</version>
+        </dependency>
+
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>

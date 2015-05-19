@@ -15,25 +15,22 @@
  */
 package ml.grafos.okapi.graphs.similarity;
 
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-
-import ml.grafos.okapi.common.data.LongArrayListWritable;
-
+import de.unipassau.fim.dimis.schlegel.types.WritableLabel;
+import ml.grafos.okapi.common.data.LabelArrayListWritable;
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.util.bloom.BloomFilter;
 import org.apache.hadoop.util.bloom.Key;
 import org.apache.hadoop.util.hash.Hash;
-import org.apache.hadoop.io.Writable;
 
-import com.google.common.primitives.Longs;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
 /**
  * 
@@ -65,8 +62,7 @@ import com.google.common.primitives.Longs;
 public class AdamicAdar {
 
   /** Enables the approximation computation */
-  public static final String ADAMICADAR_APPROXIMATION = 
-      "adamicadar.approximation.enabled";
+  public static final String ADAMICADAR_APPROXIMATION = "adamicadar.approximation.enabled";
   
   /** Default value for approximate computation */
   public static final boolean ADAMICADAR_APPROXIMATION_DEFAULT = false;
@@ -102,14 +98,11 @@ public class AdamicAdar {
    * as its own vertex value. 
    *
    */
-  public static class ComputeLogOfInverseDegree extends BasicComputation<LongWritable, 
-  	DoubleWritable, DoubleWritable, LongIdDoubleValueFriendsList> {
+  public static class ComputeLogOfInverseDegree extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, LabelIdDoubleValueFriendsList> {
 
 	@Override
-	public void compute(
-			Vertex<LongWritable, DoubleWritable, DoubleWritable> vertex,
-			Iterable<LongIdDoubleValueFriendsList> messages) throws IOException {
-		DoubleWritable vertexValue = new DoubleWritable(0.0);
+	public void compute( Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex, Iterable<LabelIdDoubleValueFriendsList> messages) throws IOException {
+      DoubleWritable vertexValue = new DoubleWritable(0.0);
 		if (vertex.getNumEdges() > 0) {
 			vertexValue.set(Math.log(1.0 / (double) vertex.getNumEdges()));
 		}
@@ -117,29 +110,26 @@ public class AdamicAdar {
 	}
 	  
   }
+
   /**
    * Implements the first step in the exact Adamic-Adar similarity algorithm. 
    * Each vertex broadcasts the list with the IDs of all its neighbors and
    * its own value.
    *
    */
-  public static class SendFriendsListAndValue extends BasicComputation<LongWritable, 
-    DoubleWritable, DoubleWritable, LongIdDoubleValueFriendsList> {
+  public static class SendFriendsListAndValue extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, LabelIdDoubleValueFriendsList> {
 
 	@Override
-	public void compute(
-			Vertex<LongWritable, DoubleWritable, DoubleWritable> vertex,
-			Iterable<LongIdDoubleValueFriendsList> messages) throws IOException {
+	public void compute(Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex, Iterable<LabelIdDoubleValueFriendsList> messages) throws IOException {
+
+        LabelArrayListWritable friends = new LabelArrayListWritable();
 		
-			LongArrayListWritable friends = new LongArrayListWritable();
-		
-			for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
+			for (Edge<WritableLabel, DoubleWritable> edge : vertex.getEdges()) {
 			      friends.add(WritableUtils.clone(edge.getTargetVertexId(), getConf()));
 			}
 			
 			if (!(friends.isEmpty())) {
-				LongIdDoubleValueFriendsList msg = new LongIdDoubleValueFriendsList(vertex.getValue(), 
-						friends);
+              LabelIdDoubleValueFriendsList msg = new LabelIdDoubleValueFriendsList(vertex.getValue(), friends);
 			    sendMessageToAllEdges(vertex, msg);
 			}
 		}
@@ -152,18 +142,17 @@ public class AdamicAdar {
  
    *
    */
-  public static class LongIdDoubleValueFriendsList implements Writable {
+  public static class LabelIdDoubleValueFriendsList implements Writable {
 
 	  private DoubleWritable vertexValue;
-	  private LongArrayListWritable neighbors;
+	  private LabelArrayListWritable neighbors;
 	
-	  public LongIdDoubleValueFriendsList() {
+	  public LabelIdDoubleValueFriendsList() {
 		  this.vertexValue = new DoubleWritable();
-		  this.neighbors = new LongArrayListWritable();
+		  this.neighbors = new LabelArrayListWritable();
 	  }
 	  
-	  public LongIdDoubleValueFriendsList(DoubleWritable value, 
-			  LongArrayListWritable neighborList) {
+	  public LabelIdDoubleValueFriendsList(DoubleWritable value, LabelArrayListWritable neighborList) {
 		this.vertexValue = value;
 		this.neighbors = neighborList;
 	}
@@ -172,7 +161,7 @@ public class AdamicAdar {
 		  return this.vertexValue;
 	  }
 	  
-	  public LongArrayListWritable getNeighborsList() {
+	  public LabelArrayListWritable getNeighborsList() {
 		  return this.neighbors;
 	  }
 	  
@@ -203,8 +192,7 @@ public class AdamicAdar {
    * edges, not any pair of vertices in the graph.
    *
    */
-  public static class AdamicAdarComputation extends BasicComputation<LongWritable, 
-    DoubleWritable, DoubleWritable, LongIdDoubleValueFriendsList> {
+  public static class AdamicAdarComputation extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, LabelIdDoubleValueFriendsList> {
 
 	  boolean conversionEnabled;
 	  
@@ -214,19 +202,15 @@ public class AdamicAdar {
 	  }
 
     @Override
-    public void compute(
-        Vertex<LongWritable, DoubleWritable, DoubleWritable> vertex,
-        Iterable<LongIdDoubleValueFriendsList> messages) throws IOException {
-
-      for (LongIdDoubleValueFriendsList msg : messages) {
+    public void compute(Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex, Iterable<LabelIdDoubleValueFriendsList> messages) throws IOException {
+      for (LabelIdDoubleValueFriendsList msg : messages) {
         DoubleWritable partialValue = msg.getVertexValue();
-        for (LongWritable id : msg.getNeighborsList()) {
-        	if (id != vertex.getId()) {
+        for (WritableLabel id : msg.getNeighborsList()) {
+        	if (!id.getLabel().equals(vertex.getId().getLabel())) {
         		if (vertex.getEdgeValue(id) != null) {
         			DoubleWritable currentEdgeValue = vertex.getEdgeValue(id);
         			// if the edge exists, add up the partial value to the current sum
-        			vertex.setEdgeValue(id, new DoubleWritable(currentEdgeValue.get() 
-        					+ partialValue.get()));
+        			vertex.setEdgeValue(id, new DoubleWritable(currentEdgeValue.get() + partialValue.get()));
         		}
         	}	 
         }
@@ -237,18 +221,15 @@ public class AdamicAdar {
     }
   }
 
-
-  public static class ScaleToDistance extends BasicComputation<LongWritable, 
-  	DoubleWritable, DoubleWritable, LongIdDoubleValueFriendsList> {
+  public static class ScaleToDistance extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, LabelIdDoubleValueFriendsList> {
 
 	@Override
 	public void compute(
-			Vertex<LongWritable, DoubleWritable, DoubleWritable> vertex,
-			Iterable<LongIdDoubleValueFriendsList> messages) throws IOException {
+			Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex,
+			Iterable<LabelIdDoubleValueFriendsList> messages) throws IOException {
 		
-		for (Edge<LongWritable, DoubleWritable> e: vertex.getEdges()) {
-			vertex.setEdgeValue(e.getTargetVertexId(), 
-					new DoubleWritable(e.getValue().get()*(-1.0)));
+		for (Edge<WritableLabel, DoubleWritable> e: vertex.getEdges()) {
+			vertex.setEdgeValue(e.getTargetVertexId(), new DoubleWritable(e.getValue().get()*(-1.0)));
 		}
 		vertex.voteToHalt();
 	}
@@ -262,8 +243,7 @@ public class AdamicAdar {
    * along with its own ID and its value (log of its inverse degree).
    *
    */
-  public static class SendFriendsListAndValueBloomFilter extends BasicComputation<LongWritable, 
-  	DoubleWritable, DoubleWritable, LongIdAndValueBloomFilter> {
+  public static class SendFriendsListAndValueBloomFilter extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, LabelIdAndValueBloomFilter> {
 
     int numBits;
     int numFunctions;
@@ -271,27 +251,21 @@ public class AdamicAdar {
 
     @Override
     public void preSuperstep() {
-      numBits = getConf().getInt(
-          BLOOM_FILTER_BITS, BLOOM_FILTER_BITS_DEFAULT);
-      numFunctions = getConf().getInt(
-          BLOOM_FILTER_FUNCTIONS, BLOOM_FILTER_FUNCTIONS_DEFAULT);
-      hashType = getConf().getInt(
-          BLOOM_FILTER_HASH_TYPE, BLOOM_FILTER_HASH_TYPE_DEFAULT);
+      numBits = getConf().getInt(BLOOM_FILTER_BITS, BLOOM_FILTER_BITS_DEFAULT);
+      numFunctions = getConf().getInt(BLOOM_FILTER_FUNCTIONS, BLOOM_FILTER_FUNCTIONS_DEFAULT);
+      hashType = getConf().getInt(BLOOM_FILTER_HASH_TYPE, BLOOM_FILTER_HASH_TYPE_DEFAULT);
     }
 
     @Override
-    public void compute(
-        Vertex<LongWritable, DoubleWritable, DoubleWritable> vertex,
-        Iterable<LongIdAndValueBloomFilter> messages) throws IOException {
+    public void compute(Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex, Iterable<LabelIdAndValueBloomFilter> messages) throws IOException {
       
       BloomFilter filter = new BloomFilter(numBits, numFunctions, hashType);
 
-      for (Edge<LongWritable, DoubleWritable> e : vertex.getEdges()) {
-        filter.add(new Key(Longs.toByteArray(e.getTargetVertexId().get())));
+      for (Edge<WritableLabel, DoubleWritable> e : vertex.getEdges()) {
+        filter.add(new Key(e.getTargetVertexId().getBytes()));
       }
 
-      sendMessageToAllEdges(vertex, 
-          new LongIdAndValueBloomFilter(vertex.getValue(), filter));
+      sendMessageToAllEdges(vertex, new LabelIdAndValueBloomFilter(vertex.getValue(), filter));
     }
   }
 
@@ -302,12 +276,12 @@ public class AdamicAdar {
    * of the sender of the message, (ii) the bloom filter containing vertex IDs
    *
    */
-  public static class LongIdAndValueBloomFilter implements Writable {
+  public static class LabelIdAndValueBloomFilter implements Writable {
 
     private DoubleWritable vertexValue;
     private BloomFilter filter;
 
-    public LongIdAndValueBloomFilter(DoubleWritable value, BloomFilter msg) {
+    public LabelIdAndValueBloomFilter(DoubleWritable value, BloomFilter msg) {
       this.vertexValue = value;
       this.filter = msg;
     }
@@ -344,8 +318,7 @@ public class AdamicAdar {
    * vertices may overestimate the number of common neighbors.
    *
    */
-  public static class AdamicAdarApproximation extends BasicComputation<LongWritable, 
-  DoubleWritable, DoubleWritable, LongIdAndValueBloomFilter> {
+  public static class AdamicAdarApproximation extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, LabelIdAndValueBloomFilter> {
 
 	  boolean conversionEnabled;
 	  
@@ -355,15 +328,13 @@ public class AdamicAdar {
 	  }
 
     @Override
-    public void compute(
-        Vertex<LongWritable, DoubleWritable, DoubleWritable> vertex,
-        Iterable<LongIdAndValueBloomFilter> messages) throws IOException {
+    public void compute(Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex, Iterable<LabelIdAndValueBloomFilter> messages) throws IOException {
     	
-    	for (LongIdAndValueBloomFilter msg : messages) {
+    	for (LabelIdAndValueBloomFilter msg : messages) {
             DoubleWritable partialValue = msg.getVertexValue();
             BloomFilter filter = msg.getNeighborsList();
-            for (Edge<LongWritable, DoubleWritable> e : vertex.getEdges()) {
-            	Key k = new Key(Longs.toByteArray(e.getTargetVertexId().get()));
+            for (Edge<WritableLabel, DoubleWritable> e : vertex.getEdges()) {
+            	Key k = new Key(e.getTargetVertexId().getBytes());
                 if (filter.membershipTest(k)) { // common neighbor
             		DoubleWritable currentEdgeValue = vertex.getEdgeValue(e.getTargetVertexId());
             		// add up the partial value to the current sum
@@ -378,17 +349,15 @@ public class AdamicAdar {
        }
   }
   
-  public static class ScaleToDistanceBloom extends BasicComputation<LongWritable, 
-  	DoubleWritable, DoubleWritable, LongIdAndValueBloomFilter> {
+  public static class ScaleToDistanceBloom extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, LabelIdAndValueBloomFilter> {
 
 	@Override
 	public void compute(
-			Vertex<LongWritable, DoubleWritable, DoubleWritable> vertex,
-			Iterable<LongIdAndValueBloomFilter> messages) throws IOException {
+			Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex,
+			Iterable<LabelIdAndValueBloomFilter> messages) throws IOException {
 		
-		for (Edge<LongWritable, DoubleWritable> e: vertex.getEdges()) {
-			vertex.setEdgeValue(e.getTargetVertexId(), 
-					new DoubleWritable(e.getValue().get()*(-1.0)));
+		for (Edge<WritableLabel, DoubleWritable> e: vertex.getEdges()) {
+			vertex.setEdgeValue(e.getTargetVertexId(),new DoubleWritable(e.getValue().get()*(-1.0)));
 		}
 		vertex.voteToHalt();
 	}
