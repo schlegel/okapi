@@ -15,11 +15,10 @@
  */
 package ml.grafos.okapi.graphs;
 
+import de.unipassau.fim.dimis.schlegel.types.WritableLabel;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.log4j.Logger;
 
 /**
@@ -30,8 +29,7 @@ import org.apache.log4j.Logger;
  *
  * The maximum number of supersteps is configurable.
  */
-public class SimplePageRank extends BasicComputation<LongWritable,
-  DoubleWritable, FloatWritable, DoubleWritable> {
+public class SimplePageRank extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, DoubleWritable> {
   /** Default number of supersteps */
   public static final int MAX_SUPERSTEPS_DEFAULT = 30;
   /** Property name for number of supersteps */
@@ -42,8 +40,7 @@ public class SimplePageRank extends BasicComputation<LongWritable,
     Logger.getLogger(SimplePageRank.class);
 
   @Override
-  public void compute(
-      Vertex<LongWritable, DoubleWritable, FloatWritable> vertex,
+  public void compute(Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex,
       Iterable<DoubleWritable> messages) {
     if (getSuperstep() == 0) {
       vertex.setValue(new DoubleWritable(1f / getTotalNumVertices()));
