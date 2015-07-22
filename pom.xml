@@ -10,8 +10,8 @@
 
 	<properties>
 		<giraph.version>1.1.0-hadoop2</giraph.version>
-		<mapreduce.version>2.6.0</mapreduce.version>
-		<hadoop.version>2.6.0</hadoop.version>
+		<mapreduce.version>2.5.1</mapreduce.version>
+		<hadoop.version>2.5.1</hadoop.version>
 		<giraph.scope>compile</giraph.scope>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
