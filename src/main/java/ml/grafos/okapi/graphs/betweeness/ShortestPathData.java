@@ -23,8 +23,7 @@ import org.apache.hadoop.io.Writable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.ArrayList;
 
 public class ShortestPathData implements Writable {
 
@@ -43,7 +42,7 @@ public class ShortestPathData implements Writable {
      */
     private String from;
 
-    private List<String> shortestPathSources;
+    private ArrayList<String> shortestPathSources;
 
 
     /**
@@ -60,7 +59,7 @@ public class ShortestPathData implements Writable {
         distance = Integer.MAX_VALUE;
         source = "-1";
         from = "-1";
-        shortestPathSources = new LinkedList<>();
+        shortestPathSources = new ArrayList<>();
     }
 
     /**
@@ -79,7 +78,7 @@ public class ShortestPathData implements Writable {
         return data;
     }
 
-    public static ShortestPathData getPingMessage(List<String> sources, String from) {
+    public static ShortestPathData getPingMessage(ArrayList<String> sources, String from) {
         ShortestPathData data = new ShortestPathData();
         data.setShortestPathSources(sources);
         data.setFrom(from);
@@ -113,7 +112,7 @@ public class ShortestPathData implements Writable {
         distance = in.readInt();
 
         int size = in.readInt();
-        shortestPathSources = new LinkedList<>();
+        shortestPathSources = new ArrayList<>();
         for (int i = 0; i < size; i++) {
             shortestPathSources.add(Text.readString(in));
         }
@@ -173,11 +172,11 @@ public class ShortestPathData implements Writable {
         this.from = from;
     }
 
-    public void setShortestPathSources(List<String> shortestPathSources) {
+    public void setShortestPathSources(ArrayList<String> shortestPathSources) {
         this.shortestPathSources = shortestPathSources;
     }
 
-    public List<String> getShortestPathSources() {
+    public ArrayList<String> getShortestPathSources() {
         return shortestPathSources;
     }
 }

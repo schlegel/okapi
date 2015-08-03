@@ -33,10 +33,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 
 
@@ -110,7 +107,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 Map<String, ShortestPathList> shortestPathMap = vertexValue.getPathDataMap();
 
                 // dont send the message directly, combine messages to common neighbour
-                Map<String, List<String>> combinedMessages = new HashMap<>();
+                Map<String, ArrayList<String>> combinedMessages = new HashMap<>();
 
                 for(Entry<String, ShortestPathList> entry : shortestPathMap.entrySet()) {
                     String source = entry.getKey();
@@ -121,7 +118,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
 
                         for (String predecessor : pathes.getPredecessors()) {
                             if(!combinedMessages.containsKey(predecessor)) {
-                                combinedMessages.put(predecessor, new LinkedList<String>());
+                                combinedMessages.put(predecessor, new ArrayList<String>());
                             }
                             combinedMessages.get(predecessor).add(source);
                             updateCount++;
@@ -132,6 +129,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 for(String predecessor : combinedMessages.keySet()){
                     sendMessage(new Text(predecessor), ShortestPathData.getPingMessage(combinedMessages.get(predecessor), id));
                 }
+                combinedMessages.clear();
 
 
                 if(updateCount > 0 ) {
@@ -144,7 +142,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 Map<String, ShortestPathList> shortestPaths = vertexValue.getPathDataMap();
 
                 // dont send the message directly, combine messages to common neighbour
-                Map<String, List<String>> messagesCombined = new HashMap<>();
+                Map<String, ArrayList<String>> messagesCombined = new HashMap<>();
 
                 int shortestPathcount = 0;
                 // process incoming messages
@@ -158,20 +156,20 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                             ShortestPathList shortestPathList = shortestPaths.get(source);
                             for (String predecessor : shortestPathList.getPredecessors()) {
                                 if(!messagesCombined.containsKey(predecessor)) {
-                                    messagesCombined.put(predecessor, new LinkedList<String>());
+                                    messagesCombined.put(predecessor, new ArrayList<String>());
                                 }
                                 messagesCombined.get(predecessor).add(source);
                                 updateCount++;
                             }
                         }
                     }
-
                 }
 
                 // send combined messages
                 for(String predecessor : messagesCombined.keySet()){
                     sendMessage(new Text(predecessor), ShortestPathData.getPingMessage(messagesCombined.get(predecessor), id));
                 }
+                messagesCombined.clear();
 
                 if(shortestPathcount > 0) {
                     vertexValue.addNumberofPaths(BigInteger.valueOf(shortestPathcount));
