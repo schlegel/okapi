@@ -58,8 +58,8 @@ public class BetweennessOutputFormat extends TextVertexOutputFormat<Text, Betwee
 
             HashCode resultID = hf.newHasher().putString(id).hash();
 
-            // FORMAT: <URL> <NUMBEROFSHORTESTPATHS> <BETWEENESSRRESULT> <CLUSTERID> <NUMBEROFMEMBERS>
-            getRecordWriter().write(new Text(vertex.getId().toString()), new Text(resultdata.getNumPaths().toString() + ", " + String.format("%.32f", resultdata.getBetweenness())   + ", " + resultID.toString() + ", " + resultdata.getPathDataMap().size()));
+            // FORMAT: <URL> <NUMBEROFSHORTESTPATHS> <BETWEENESSRRESULT> <CLUSTERID> <NUMBEROFMEMBERS> <CLOSENESS> <AVGSHORTESTPATHLENGTH>
+            getRecordWriter().write(new Text(vertex.getId().toString()), new Text(resultdata.getNumPaths().toString() + ", " + String.format("%.32f", resultdata.getBetweenness())   + ", " + resultID.toString() + ", " + resultdata.getPathDataMap().size() + ", " +  resultdata.getCloseness() + ", " + String.format("%.4f", resultdata.getAvgShortestPathDistance())));
         }
     }
 

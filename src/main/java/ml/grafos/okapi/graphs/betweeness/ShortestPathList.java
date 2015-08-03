@@ -24,7 +24,6 @@ import org.apache.hadoop.io.Writable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -39,7 +38,7 @@ public class ShortestPathList implements Writable {
     /**
      * The distance from source to this vertex on the shortest path.
      */
-    private BigInteger distance;
+    private int distance;
 
     /**
      * The map of predecessor to number of shortest paths from source to that predecessor
@@ -50,7 +49,7 @@ public class ShortestPathList implements Writable {
      * Create a new shortest empty Path List
      */
     public ShortestPathList() {
-        distance = BigInteger.valueOf(Long.MAX_VALUE);
+        distance = Integer.MAX_VALUE;
         setPredecessors(new HashSet<String>());
     }
 
@@ -74,14 +73,14 @@ public class ShortestPathList implements Writable {
      * @return true if the ShortestPathList is modified in anyway, otherwise false.
      */
     public boolean update(ShortestPathData data) {
-        if (data.getDistance().equals(this.distance)) {
+        if (data.getDistance() == this.distance) {
             if (!this.predecessors.contains(data.getFrom())) {
                 predecessors.add(data.getFrom());
                 return true;
             } else {
                 return false;
             }
-        } else if (data.getDistance().compareTo(this.distance) < 0) {
+        } else if (data.getDistance() < this.distance) {
             this.distance = data.getDistance();
             this.predecessors.clear();
             predecessors.add(data.getFrom());
@@ -93,7 +92,7 @@ public class ShortestPathList implements Writable {
 
     @Override
     public void write(DataOutput out) throws IOException {
-        Text.writeString(out, distance.toString());
+        out.writeInt(distance);
         out.writeInt(this.predecessors.size());
         for (String entry : predecessors) {
             Text.writeString(out, entry);
@@ -104,7 +103,7 @@ public class ShortestPathList implements Writable {
     @Override
     public void readFields(DataInput in) throws IOException {
         this.predecessors.clear();
-        setDistance(new BigInteger(Text.readString(in)));
+        setDistance(in.readInt());
         int size = in.readInt();
         for (int i = 0; i < size; i++) {
             predecessors.add(Text.readString(in));
@@ -114,7 +113,7 @@ public class ShortestPathList implements Writable {
     /**
      * @return The distance from a source to this vertex.
      */
-    public BigInteger getDistance() {
+    public int getDistance() {
         return distance;
     }
 
@@ -123,7 +122,7 @@ public class ShortestPathList implements Writable {
      *
      * @param distance The distance to set it to.
      */
-    public void setDistance(BigInteger distance) {
+    public void setDistance(int distance) {
         this.distance = distance;
     }
 

@@ -34,6 +34,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -68,9 +70,9 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
             case SHORTEST_PATH_START:
 
                  // start shortest path processing from this vertex as source
-                sendMessageToAllEdges(vertex, ShortestPathData.createShortestPathMessage(id, id, BigInteger.valueOf(1)));
+                sendMessageToAllEdges(vertex, ShortestPathData.createShortestPathMessage(id, id, 1));
                 // add reflexiv path
-                vertexValue.addPathData(ShortestPathData.createShortestPathMessage(id, id, BigInteger.valueOf(0)));
+                vertexValue.addPathData(ShortestPathData.createShortestPathMessage(id, id, 0));
 
                 this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(1));
 
@@ -88,13 +90,11 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 }
 
                 // send outgoing messages for each updated shortest path
-                // TODO maybe dont sent to nodes which are responsible for the update
                 for (Entry<String, ShortestPathList> entry : updatedPathMap.entrySet()) {
                     ShortestPathList spl = entry.getValue();
                     String src = entry.getKey();
 
-                    BigInteger newDistance = spl.getDistance().add(BigInteger.valueOf(1));
-                    sendMessageToAllEdges(vertex, ShortestPathData.createShortestPathMessage(src, id, newDistance));
+                    sendMessageToAllEdges(vertex, ShortestPathData.createShortestPathMessage(src, id, spl.getDistance()+1));
 
                     updateCount++;
                 }
@@ -106,22 +106,33 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 break;
 
             case BETWEENESSS_PING:
-                // TODO aggregate avg distance in this step
                 // ping the predecessors that they are involved in a shortest path
                 Map<String, ShortestPathList> shortestPathMap = vertexValue.getPathDataMap();
 
+                // dont send the message directly, combine messages to common neighbour
+                Map<String, List<String>> combinedMessages = new HashMap<>();
+
                 for(Entry<String, ShortestPathList> entry : shortestPathMap.entrySet()) {
                     String source = entry.getKey();
-                    ShortestPathList pathes = entry.getValue();
 
                     // only ping if this node isn't directly the source
                     if(!id.equals(source)){
+                        ShortestPathList pathes = entry.getValue();
+
                         for (String predecessor : pathes.getPredecessors()) {
-                            sendMessage(new Text(predecessor), ShortestPathData.getPingMessage(source, id));
+                            if(!combinedMessages.containsKey(predecessor)) {
+                                combinedMessages.put(predecessor, new LinkedList<String>());
+                            }
+                            combinedMessages.get(predecessor).add(source);
                             updateCount++;
                         }
                     }
                 }
+
+                for(String predecessor : combinedMessages.keySet()){
+                    sendMessage(new Text(predecessor), ShortestPathData.getPingMessage(combinedMessages.get(predecessor), id));
+                }
+
 
                 if(updateCount > 0 ) {
                     this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(updateCount));
@@ -132,20 +143,34 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 // save number of shortest path which this node is involved in and populate the info to the next appropriate predecessor
                 Map<String, ShortestPathList> shortestPaths = vertexValue.getPathDataMap();
 
+                // dont send the message directly, combine messages to common neighbour
+                Map<String, List<String>> messagesCombined = new HashMap<>();
+
                 int shortestPathcount = 0;
                 // process incoming messages
                 for (ShortestPathData message : messages) {
-                    // each message means this node is involved in a shortest path
-                    ++shortestPathcount;
+                    for(String source : message.getShortestPathSources()){
+                        // each message means this node is involved in a shortest path
+                        ++shortestPathcount;
 
-                    // notify the next predecessors that it is involved in a shortest path for the specified source if we are not directly the source
-                    if(!id.equals(message.getSource())) {
-                        ShortestPathList shortestPathList = shortestPaths.get(message.getSource());
-                        for (String predecessor : shortestPathList.getPredecessors()) {
-                            updateCount++;
-                            sendMessage(new Text(predecessor), ShortestPathData.getPingMessage(message.getSource(), message.getFrom()));
+                        // notify the next predecessors that it is involved in a shortest path for the specified source if we are not directly the source
+                        if(!id.equals(source)) {
+                            ShortestPathList shortestPathList = shortestPaths.get(source);
+                            for (String predecessor : shortestPathList.getPredecessors()) {
+                                if(!messagesCombined.containsKey(predecessor)) {
+                                    messagesCombined.put(predecessor, new LinkedList<String>());
+                                }
+                                messagesCombined.get(predecessor).add(source);
+                                updateCount++;
+                            }
                         }
                     }
+
+                }
+
+                // send combined messages
+                for(String predecessor : messagesCombined.keySet()){
+                    sendMessage(new Text(predecessor), ShortestPathData.getPingMessage(messagesCombined.get(predecessor), id));
                 }
 
                 if(shortestPathcount > 0) {
@@ -159,6 +184,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 break;
 
             case BETWEENESSS_CALCULATE:
+                // TODO calculate correct number of shortest pathes in this component (e.g. send number of shortestpaths to each node in cluster)
 
                 // becaus of all-pairshortest path we have a shortest path for each node in the cluster. so we can get the number of vertices in this cluster
                 BigInteger totalNumberOfVertices = BigInteger.valueOf(vertexValue.getPathDataMap().size());
@@ -170,6 +196,28 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                     BigDecimal result = new BigDecimal(vertexValue.getNumPaths()).divide(new BigDecimal(numberOfShortestPathesInCluster), 10, RoundingMode.HALF_DOWN) ;
                     vertexValue.setBetweenness(result.doubleValue());
                 }
+
+                // calculate Closeness centrality
+                long closenessCentrality = 0;
+                for(String source : vertexValue.getPathDataMap().keySet()){
+                    closenessCentrality += vertexValue.getPathDataMap().get(source).getDistance();
+                }
+
+                vertexValue.setCloseness(closenessCentrality);
+
+                // calculate avg shortest path length
+                long sumShortestPath = 0;
+                int numberOfShortestPath = 0;
+                for(String source : vertexValue.getPathDataMap().keySet()){
+                    ShortestPathList shortestPathList = vertexValue.getPathDataMap().get(source);
+                    for(String pred: shortestPathList.getPredecessors()){
+                        sumShortestPath += shortestPathList.getDistance();
+                        numberOfShortestPath++;
+                    }
+                }
+
+                vertexValue.setAvgShortestPathDistance((double)sumShortestPath/(double)numberOfShortestPath);
+
 
                 break;
         }

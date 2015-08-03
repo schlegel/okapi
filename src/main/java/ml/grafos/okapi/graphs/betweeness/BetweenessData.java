@@ -21,12 +21,15 @@ public class BetweenessData implements Writable {
     private Double betweenness;
     private BigInteger numPaths;
     private Map<String, ShortestPathList> pathDataMap;
+    public long closeness;
+    private double avgShortestPathDistance;
 
 
     public BetweenessData() {
         betweenness = 0.0;
         // because we have a reflexiv shortest path
         numPaths = BigInteger.valueOf(1);
+        avgShortestPathDistance = 0;
         pathDataMap = new HashMap<String, ShortestPathList>();
     }
 
@@ -35,6 +38,8 @@ public class BetweenessData implements Writable {
     public void write(DataOutput out) throws IOException {
         // write betweeness
         out.writeDouble(betweenness);
+        out.writeLong(closeness);
+        out.writeDouble(avgShortestPathDistance);
 
         // write numpaths
         out.writeLong(numPaths.longValue());
@@ -55,6 +60,8 @@ public class BetweenessData implements Writable {
 
         // read betweeness
         betweenness = in.readDouble();
+        closeness = in.readLong();
+        avgShortestPathDistance = in.readDouble();
 
         // read numpaths
         numPaths = BigInteger.valueOf(in.readLong());
@@ -114,6 +121,14 @@ public class BetweenessData implements Writable {
 
     }
 
+    public long getCloseness() {
+        return closeness;
+    }
+
+    public void setCloseness(long closeness) {
+        this.closeness = closeness;
+    }
+
     public void setPathDataMap(Map<String, ShortestPathList> pathDataMap) {
         this.pathDataMap = pathDataMap;
     }
@@ -121,5 +136,13 @@ public class BetweenessData implements Writable {
     @Override
     public String toString() {
         return numPaths.toString() + ", " + pathDataMap.size() + ", " + betweenness;
+    }
+
+    public void setAvgShortestPathDistance(double avgShortestPathDistance) {
+        this.avgShortestPathDistance = avgShortestPathDistance;
+    }
+
+    public double getAvgShortestPathDistance() {
+        return avgShortestPathDistance;
     }
 }

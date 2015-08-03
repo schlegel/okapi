@@ -23,22 +23,15 @@ import org.apache.hadoop.io.Writable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.math.BigInteger;
+import java.util.LinkedList;
+import java.util.List;
 
-
-/**
- * Message that can be passed between vertices.  Used for both shortest path computation and pair dependency
- * accumulation.  Some fields are only used in one of the two phases, or take on different meaning in the different phases.
- * <p/>
- * For more information on this method of calculation betweenness centrality see
- * "U. Brandes, A Faster Algorithm for Betweenness Centrality"
- */
 public class ShortestPathData implements Writable {
 
     /**
      * The Distance of the path.
      */
-    private BigInteger distance;
+    private int distance;
 
     /**
      * The source node of the path.
@@ -49,6 +42,8 @@ public class ShortestPathData implements Writable {
      * the predecessor OR successor node (for shortest path OR pair betweeness ping).
      */
     private String from;
+
+    private List<String> shortestPathSources;
 
 
     /**
@@ -62,9 +57,10 @@ public class ShortestPathData implements Writable {
      * </ul>
      */
     public ShortestPathData() {
-        distance = BigInteger.valueOf(Long.MAX_VALUE);
+        distance = Integer.MAX_VALUE;
         source = "-1";
         from = "-1";
+        shortestPathSources = new LinkedList<>();
     }
 
     /**
@@ -75,7 +71,7 @@ public class ShortestPathData implements Writable {
      * @param distance The distance from the source to the predecessor.
      * @return a New PathData Object
      */
-    public static ShortestPathData createShortestPathMessage(String source, String from, BigInteger distance) {
+    public static ShortestPathData createShortestPathMessage(String source, String from, int distance) {
         ShortestPathData data = new ShortestPathData();
         data.setSource(source);
         data.setFrom(from);
@@ -83,16 +79,11 @@ public class ShortestPathData implements Writable {
         return data;
     }
 
-    /**
-     * Get a new PathData message for sending successor / predecessor information to neighbors
-     *
-     * @param source The source that the ping came from.
-     * @return A new PathData message for Ping purposes.
-     */
-    public static ShortestPathData getPingMessage(String source, String from) {
+    public static ShortestPathData getPingMessage(List<String> sources, String from) {
         ShortestPathData data = new ShortestPathData();
-        data.setSource(source);
+        data.setShortestPathSources(sources);
         data.setFrom(from);
+        data.setDistance(0);
         return data;
     }
 
@@ -101,16 +92,31 @@ public class ShortestPathData implements Writable {
     public void write(DataOutput out) throws IOException {
         Text.writeString(out, source);
         Text.writeString(out, from);
-        Text.writeString(out, distance.toString());
+        out.writeInt(distance);
+
+        if(shortestPathSources != null) {
+            out.writeInt(shortestPathSources.size());
+        } else {
+            out.writeInt(0);
+        }
+
+
+        for(String source : shortestPathSources) {
+            Text.writeString(out, source);
+        }
     }
 
     @Override
     public void readFields(DataInput in) throws IOException {
-
         source = Text.readString(in);
         from = Text.readString(in);
+        distance = in.readInt();
 
-        distance = new BigInteger(Text.readString(in));
+        int size = in.readInt();
+        shortestPathSources = new LinkedList<>();
+        for (int i = 0; i < size; i++) {
+            shortestPathSources.add(Text.readString(in));
+        }
     }
 
     /**
@@ -118,7 +124,7 @@ public class ShortestPathData implements Writable {
      *
      * @return The distance value.
      */
-    public BigInteger getDistance() {
+    public int getDistance() {
         return distance;
     }
 
@@ -127,7 +133,7 @@ public class ShortestPathData implements Writable {
      *
      * @param distance Distance value to set it to.
      */
-    public void setDistance(BigInteger distance) {
+    public void setDistance(int distance) {
         this.distance = distance;
     }
 
@@ -165,5 +171,13 @@ public class ShortestPathData implements Writable {
      */
     public void setFrom(String from) {
         this.from = from;
+    }
+
+    public void setShortestPathSources(List<String> shortestPathSources) {
+        this.shortestPathSources = shortestPathSources;
+    }
+
+    public List<String> getShortestPathSources() {
+        return shortestPathSources;
     }
 }
