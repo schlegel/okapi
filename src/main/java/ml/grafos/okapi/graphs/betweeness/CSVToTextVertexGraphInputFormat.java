@@ -13,54 +13,27 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.regex.Pattern;
 
-public class NTriplesToTextVertexGraphInputFormat extends TextEdgeInputFormat<Text, Text> {
+public class CSVToTextVertexGraphInputFormat extends TextEdgeInputFormat<Text, Text> {
 
-    private static final Logger INPUT_FORMAT_LOGGER =
-            LoggerFactory.getLogger(NTriplesToTextVertexGraphInputFormat.class);
-    private static final Logger INPUT_FORMAT_READER_LOGGER =
-            LoggerFactory.getLogger(NTriplesToDirectedLabelGraphInputFormatReader.class);
+    private static final Logger INPUT_FORMAT_LOGGER = LoggerFactory.getLogger(CSVToTextVertexGraphInputFormat.class);
+    private static final Logger INPUT_FORMAT_READER_LOGGER = LoggerFactory.getLogger(CSVToDirectedLabelGraphInputFormatReader.class);
 
-    // The pattern will match any sequence of space or tab characters that are
-    // followed by either < (opening bracket), " (quotation mark), or . (dot).
-    // This allows whitespace in string literals. The following ntriples line
-    // can be split into four strings using the given pattern:
-    //
-    // <http://example.org/show/218> <http://www.w3.org/2000/01/rdf-schema#label>
-    //      "That Seventies Show"^^<http://www.w3.org/2001/XMLSchema#string> .
-    //
-    // with the resulting string splits being
-    // 1: <http://example.org/show/218>
-    // 2: <http://www.w3.org/2000/01/rdf-schema#label>
-    // 3: "That Seventies Show"^^<http://www.w3.org/2001/XMLSchema#string>
-    // 4: .
-    //
-    // Note that the third sequence's whitespace is not subject to a split, as
-    // it is part of the string literal.
-    private static final Pattern SEPARATOR = Pattern.compile("[\t ]+(?=[<\".])");
+    // CSV split regex
+    private static final Pattern SEPARATOR = Pattern.compile(",(?=([^\"]*\"[^\"]*\")*(?![^\"]*\"))");
 
-    /**
-     * Returns a new edge reader used to convert n-triple statements to their
-     * corresponding labels in the RDF directed graph representation.
-     *
-     * @param inputSplit         the input split to run the edge reader on
-     * @param taskAttemptContext any context information
-     * @return a new edge reader instance
-     * @throws IOException
-     */
     @Override
     public EdgeReader<Text, Text> createEdgeReader(InputSplit inputSplit, TaskAttemptContext taskAttemptContext) throws IOException {
 
-        EdgeReader<Text, Text> edgeReader = new NTriplesToDirectedLabelGraphInputFormatReader();
+        EdgeReader<Text, Text> edgeReader = new CSVToDirectedLabelGraphInputFormatReader();
         INPUT_FORMAT_LOGGER.trace("createEdgeReader({}, {}) -> {}", inputSplit, taskAttemptContext, edgeReader);
 
         return new ReverseEdgeDuplicator<Text, Text>(edgeReader);
     }
 
     /**
-     * The format reader used to convert n-triple statements to graph labels.
+     * The format reader used to convert csv statements to graph labels.
      */
-    protected class NTriplesToDirectedLabelGraphInputFormatReader extends TextEdgeReaderFromEachLineProcessed<String[]> {
-
+    protected class CSVToDirectedLabelGraphInputFormatReader extends TextEdgeReaderFromEachLineProcessed<String[]> {
         /**
          * Processes the line given by splitting the n-triple statement to at least
          * four strings.
@@ -72,8 +45,8 @@ public class NTriplesToTextVertexGraphInputFormat extends TextEdgeInputFormat<Te
         @Override
         protected String[] preprocessLine(Text text) throws IOException {
             String string = text.toString().trim();
-            String[] tokens = NTriplesToTextVertexGraphInputFormat.SEPARATOR.split(string);
-            INPUT_FORMAT_READER_LOGGER.trace("preprocessLine({}) -> {}", text, tokens);
+            String[] tokens = CSVToTextVertexGraphInputFormat.SEPARATOR.split(string);
+            INPUT_FORMAT_READER_LOGGER.debug("preprocessLine({}) -> {}", text, tokens);
             return tokens;
         }
 
@@ -100,7 +73,7 @@ public class NTriplesToTextVertexGraphInputFormat extends TextEdgeInputFormat<Te
          */
         @Override
         protected Text getValue(String[] strings) throws IOException {
-            Text edgeValue = this.parseLabel(strings[1]);
+            Text edgeValue = this.parseLabel(strings[2]);
             return edgeValue;
         }
 
@@ -113,17 +86,7 @@ public class NTriplesToTextVertexGraphInputFormat extends TextEdgeInputFormat<Te
          */
         @Override
         protected Text getTargetVertexId(String[] strings) throws IOException {
-
-            String string = strings[2];
-            int lastIndex = Math.max(string.length(), 1) - 1;
-
-            // N-triples does not dictate any whitespace before the statement delimiter.
-            // Remove the delimiter if it is part of the object split.
-            if (string.charAt(lastIndex) == '.') {
-                string = string.substring(0, lastIndex);
-            }
-
-            Text targetLabel = this.parseLabel(string);
+            Text targetLabel = this.parseLabel(strings[1]);
             INPUT_FORMAT_READER_LOGGER.trace("getTargetVertexId({}) -> {}", strings, targetLabel);
             return targetLabel;
         }
@@ -136,7 +99,8 @@ public class NTriplesToTextVertexGraphInputFormat extends TextEdgeInputFormat<Te
          */
         private Text parseLabel(String string) {
 
-            // Remove enclosing bracket chars '<' and '>'.
+            // Remove enclosing quotations
+            // e.g "http://vocabulary.turnguard.com/opendirectory/ElSaadawi" --> http://vocabulary.turnguard.com/opendirectory/ElSaadawi
             String labelString = string.substring(1, Math.max(string.length(), 1) - 1);
 
             Text parsedLabel = new Text(labelString);
@@ -145,3 +109,4 @@ public class NTriplesToTextVertexGraphInputFormat extends TextEdgeInputFormat<Te
         }
     }
 }
+

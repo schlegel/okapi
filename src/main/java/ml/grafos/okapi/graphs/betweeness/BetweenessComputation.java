@@ -75,6 +75,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(1));
 
                 break;
+
             case SHORTEST_PATH_RUN:
                 Map<String, ShortestPathList> updatedPathMap = new HashMap<String, ShortestPathList>();
 

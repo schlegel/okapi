@@ -17,18 +17,24 @@
  */
 package ml.grafos.okapi.graphs.betweeness;
 
+import com.google.common.hash.HashCode;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import java.io.IOException;
+import java.util.Set;
 
 
 /**
  * Writes the approximated betweenness value for each vertex
  */
 public class BetweennessOutputFormat extends TextVertexOutputFormat<Text, BetweenessData, Text> {
+
+    private HashFunction hf = Hashing.md5();
 
     @Override
     public TextVertexWriter createVertexWriter(TaskAttemptContext context) throws IOException,
@@ -38,8 +44,44 @@ public class BetweennessOutputFormat extends TextVertexOutputFormat<Text, Betwee
 
     public class SBVertexWriter extends TextVertexWriter {
 
+        // return betweenes and cluster id
         public void writeVertex(Vertex<Text, BetweenessData, Text> vertex) throws IOException, InterruptedException {
-            getRecordWriter().write(new Text(vertex.getId().toString()), new Text(vertex.getValue().toString()));
+            BetweenessData resultdata = vertex.getValue();
+
+            // get cluster id
+            Set<String> inferredNeighbours = resultdata.getPathDataMap().keySet();
+            String id = null;
+
+            for(String neighbour : inferredNeighbours) {
+                id = minString(id , neighbour);
+            }
+
+            HashCode resultID = hf.newHasher().putString(id).hash();
+
+            // FORMAT: <URL> <NUMBEROFSHORTESTPATHS> <BETWEENESSRRESULT> <CLUSTERID> <NUMBEROFMEMBERS>
+            getRecordWriter().write(new Text(vertex.getId().toString()), new Text(resultdata.getNumPaths().toString() + ", " + String.format("%.32f", resultdata.getBetweenness())   + ", " + resultID.toString() + ", " + resultdata.getPathDataMap().size()));
+        }
+    }
+
+    private String minString(String a, String b) {
+        if(a == null && b != null) {
+            return b;
+        } else if (a != null && b == null ) {
+            return a;
+        } else if(a == null && b == null) {
+            return null;
+        }
+
+        int compare = a.compareTo(b);
+        // b is smaller than a
+        if(compare < 0) {
+            return a;
+            // a is smaller than v
+        } else if(compare > 0) {
+            return b;
+            // both are equal
+        } else {
+            return a;
         }
     }
 }

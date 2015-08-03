@@ -18,7 +18,6 @@
 package ml.grafos.okapi.graphs.betweeness;
 
 
-import ml.grafos.okapi.graphs.hbse.HBSEMasterCompute;
 import org.apache.giraph.aggregators.IntOverwriteAggregator;
 import org.apache.giraph.aggregators.IntSumAggregator;
 import org.apache.giraph.master.DefaultMasterCompute;
@@ -29,7 +28,7 @@ import org.slf4j.LoggerFactory;
 
 public class BetweenessMasterCompute extends DefaultMasterCompute {
 
-    private static final Logger logger = LoggerFactory.getLogger(HBSEMasterCompute.class);
+    private static final Logger logger = LoggerFactory.getLogger(BetweenessMasterCompute.class);
 
     /**
      * Aggregator Identifier that gets the state of the computation.
@@ -49,45 +48,10 @@ public class BetweenessMasterCompute extends DefaultMasterCompute {
 
     @Override
     public void initialize() throws InstantiationException, IllegalAccessException {
+        logger.info("Init state with " + State.START);
         state = State.START;
         this.registerPersistentAggregator(STATE_AGG, IntOverwriteAggregator.class);
         this.registerAggregator(UPDATE_COUNT_AGG, IntSumAggregator.class);
-    }
-
-    /**
-     * Gets a Require Configuration value.
-     *
-     * @param name The configuration name to get.
-     * @return A valid integer
-     * @throws NumberFormatException if it can't be parsed to an int.
-     */
-    private int getRequiredHBSEConfiguration(String name) {
-        String propValue = getConf().get(name);
-        try {
-            return Integer.parseInt(propValue);
-        } catch (NumberFormatException e) {
-            logger.error("Option not set or invalid. 'name' must be set to a valid int, was set to: {}", name, propValue);
-            throw e;
-        }
-    }
-
-    /**
-     * Gets an optional configuration value and only logs a NumberFormatException.
-     *
-     * @param name         The configuration name to get.
-     * @param defaultValue The default value to be returned if there is an error.
-     * @return Integer Configuration Value
-     */
-    private int getOptionalHBSEConfiguration(String name, int defaultValue) {
-        String propValue = getConf().get(name);
-        try {
-            if (propValue == null)
-                return defaultValue;
-            return Integer.parseInt(propValue);
-        } catch (NumberFormatException e) {
-            logger.error("Option not set or invalid. {} must be set to a valid int, was set to: {}", name, defaultValue);
-            return defaultValue;
-        }
     }
 
     /**
@@ -152,25 +116,6 @@ public class BetweenessMasterCompute extends DefaultMasterCompute {
                 setGlobalState(state);
                 logger.info("Superstep: {} UPDATE COUNT 0, Switched to State: {}", step, state);
                 break;
-
-//            case PAIR_DEPENDENCY_PING_PREDECESSOR:
-//                state = State.PAIR_DEPENDENCY_FIND_SUCCESSORS;
-//                setGlobalState(state);
-//                logger.info("Superstep: {} Switched to State: {}", step, state);
-//                break;
-//            case PAIR_DEPENDENCY_FIND_SUCCESSORS:
-//                state = State.PAIR_DEPENDENCY_RUN;
-//                setGlobalState(state);
-//                logger.info("Superstep: {} Switched to State: {}", step, state);
-//                break;
-//            case PAIR_DEPENDENCY_RUN:
-//                updateCount = ((IntWritable) this.getAggregatedValue(UPDATE_COUNT_AGG)).get();
-//                if (updateCount == 0) {
-//                    state = State.PAIR_DEPENDENCY_COMPLETE;
-//                    setGlobalState(state);
-//                }
-//                logger.info("Superstep: {} UPDATE COUNT: {} STATE: {}", step, updateCount, state);
-//                break;
             case FINISHED:
                 logger.info("Superstep: {} Aggregated NUMPATHS {}", step, updateCount);
                 this.haltComputation();
