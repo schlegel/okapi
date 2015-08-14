@@ -3,8 +3,6 @@ package ml.grafos.okapi.graphs.betweeness;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -16,23 +14,17 @@ import java.util.Map.Entry;
 
 
 public class BetweenessData implements Writable {
-
-    private static final Logger logger = LoggerFactory.getLogger(BetweenessData.class);
-    private Double betweenness;
+    private double betweenness;
+    private long closeness;
+    private double avgShortestPathDistance;
     private BigInteger numPaths;
     private Map<String, ShortestPathList> pathDataMap;
-    public long closeness;
-    private double avgShortestPathDistance;
-
 
     public BetweenessData() {
-        betweenness = 0.0;
         // because we have a reflexiv shortest path
         numPaths = BigInteger.valueOf(1);
-        avgShortestPathDistance = 0;
         pathDataMap = new HashMap<String, ShortestPathList>();
     }
-
 
     @Override
     public void write(DataOutput out) throws IOException {
@@ -102,12 +94,12 @@ public class BetweenessData implements Writable {
     }
 
     public ShortestPathList addPathData(ShortestPathData data) {
-        ShortestPathList list = getPathDataMap().get(data.getSource());
+        ShortestPathList list = pathDataMap.get(data.getSource());
 
         // if the list was empty ad the first item and return
         if (list == null) {
             list = new ShortestPathList(data);
-            getPathDataMap().put(data.getSource(), list);
+            pathDataMap.put(data.getSource(), list);
             return list;
         } else {
             boolean result = list.update(data);

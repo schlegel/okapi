@@ -44,7 +44,6 @@ public class ShortestPathData implements Writable {
 
     private ArrayList<String> shortestPathSources;
 
-
     /**
      * The Default Constructor for PathData:
      * <ul>
@@ -98,7 +97,6 @@ public class ShortestPathData implements Writable {
         } else {
             out.writeInt(0);
         }
-
 
         for(String source : shortestPathSources) {
             Text.writeString(out, source);

@@ -70,6 +70,7 @@ public class BetweenessMasterCompute extends DefaultMasterCompute {
     public void compute() {
         long step = this.getSuperstep();
         int updateCount = ((IntWritable) this.getAggregatedValue(UPDATE_COUNT_AGG)).get();
+
         logger.info("Superstep: {} starting in State: {}", step, state);
         switch (state) {
             case START:
