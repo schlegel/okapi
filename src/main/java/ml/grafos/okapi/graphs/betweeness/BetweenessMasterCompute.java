@@ -99,7 +99,7 @@ public class BetweenessMasterCompute extends DefaultMasterCompute {
             case BETWEENESSS_PING:
                 state = State.BETWEENESSS_POPULATE;
                 setGlobalState(state);
-                logger.info("Superstep: {} UPDATE COUNT 0, Switched to State: {}", step, state);
+                logger.info("Superstep: {} Switched to State: {} Updated: {}", step, state, updateCount);
                 break;
             case BETWEENESSS_POPULATE:
                 if (updateCount == 0) {

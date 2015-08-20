@@ -127,7 +127,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 combinedMessages.clear();
 
                 if(updateCount > 0 ) {
-                    this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(updateCount));
+                    this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(1));
                 }
 
                 break;
@@ -141,7 +141,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 for (ShortestPathData message : messages) {
                     // this is a combined message. iterate over each list entry
                     for(String source : message.getShortestPathSources()){
-                        // each message means this node is involved in a shortest path
+                        // each combined entry means this node is involved in a shortest path
                         ++shortestPathcount;
 
                         // dont send the message directly, combine messages to common neighbour
@@ -170,7 +170,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 }
 
                 if(updateCount > 0) {
-                    this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(updateCount));
+                    this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(1));
                 }
 
                 break;
