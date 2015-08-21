@@ -25,7 +25,6 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.worker.WorkerContext;
 import org.apache.giraph.worker.WorkerGlobalCommUsage;
 import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +32,9 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Map.Entry;
 
 
@@ -41,23 +42,23 @@ import java.util.Map.Entry;
  * Calculates Shortest paths and calculates Betweeenes Centrality.
  * Use with BetweenessMasterCompute class.
  */
-public class BetweenessComputation extends AbstractComputation<Text, BetweenessData, Text, ShortestPathData, ShortestPathData> {
+public class BetweenessComputation extends AbstractComputation<IntWritable, BetweenessData, IntWritable, ShortestPathData, ShortestPathData> {
 
     private static final Logger logger = LoggerFactory.getLogger(BetweenessComputation.class);
 
     @Override
-    public void initialize(GraphState graphState, WorkerClientRequestProcessor<Text, BetweenessData, Text> workerClientRequestProcessor, GraphTaskManager<Text, BetweenessData, Text> graphTaskManager, WorkerGlobalCommUsage workerGlobalCommUsage, WorkerContext workerContext) {
+    public void initialize(GraphState graphState, WorkerClientRequestProcessor<IntWritable, BetweenessData, IntWritable> workerClientRequestProcessor, GraphTaskManager<IntWritable, BetweenessData, IntWritable> graphTaskManager, WorkerGlobalCommUsage workerGlobalCommUsage, WorkerContext workerContext) {
         super.initialize(graphState, workerClientRequestProcessor, graphTaskManager, workerGlobalCommUsage, workerContext);
     }
 
     @Override
-    public void compute(Vertex<Text, BetweenessData, Text> vertex, Iterable<ShortestPathData> messages) throws IOException {
+    public void compute(Vertex<IntWritable, BetweenessData, IntWritable> vertex, Iterable<ShortestPathData> messages) throws IOException {
 
         long step = this.getSuperstep();
         State state = getCurrentGlobalState();
         int updateCount = 0;
-        String id = vertex.getId().toString();
-        Map<String, ArrayList<String>> combinedMessages = new HashMap<>();
+        Integer id = vertex.getId().get();
+        Map<Integer, ArrayList<Integer>> combinedMessages = new HashMap<>();
 
         if (step == 0) {
             vertex.setValue(new BetweenessData());
@@ -77,7 +78,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 break;
 
             case SHORTEST_PATH_RUN:
-                Map<String, ShortestPathList> updatedPathMap = new HashMap<String, ShortestPathList>();
+                Map<Integer, ShortestPathList> updatedPathMap = new HashMap<Integer, ShortestPathList>();
 
                 // process incoming messages
                 for (ShortestPathData message : messages) {
@@ -88,7 +89,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 }
 
                 // send outgoing messages for each updated shortest path
-                for (Entry<String, ShortestPathList> entry : updatedPathMap.entrySet()) {
+                for (Entry<Integer, ShortestPathList> entry : updatedPathMap.entrySet()) {
                     sendMessageToAllEdges(vertex, ShortestPathData.createShortestPathMessage(entry.getKey(), id, entry.getValue().getDistance() + 1));
                     updateCount++;
                 }
@@ -101,19 +102,19 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
 
             case BETWEENESSS_PING:
                 // ping the predecessors that they are involved in a shortest path
-                Map<String, ShortestPathList> shortestPathMap = vertexValue.getPathDataMap();
+                Map<Integer, ShortestPathList> shortestPathMap = vertexValue.getPathDataMap();
 
                 // dont send the message directly, combine messages to common neighbour
-                for(Entry<String, ShortestPathList> entry : shortestPathMap.entrySet()) {
-                    String source = entry.getKey();
+                for(Entry<Integer, ShortestPathList> entry : shortestPathMap.entrySet()) {
+                    Integer source = entry.getKey();
 
                     // only ping if this node isn't directly the source
                     if(!id.equals(source)){
                         ShortestPathList pathes = entry.getValue();
 
-                        for (String predecessor : pathes.getPredecessors()) {
+                        for (Integer predecessor : pathes.getPredecessors()) {
                             if(!combinedMessages.containsKey(predecessor)) {
-                                combinedMessages.put(predecessor, new ArrayList<String>());
+                                combinedMessages.put(predecessor, new ArrayList<Integer>());
                             }
                             combinedMessages.get(predecessor).add(source);
                             updateCount++;
@@ -121,26 +122,26 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                     }
                 }
 
-                for(String predecessor : combinedMessages.keySet()){
-                    sendMessage(new Text(predecessor), ShortestPathData.getPingMessage(combinedMessages.get(predecessor), id));
+                for(Integer predecessor : combinedMessages.keySet()){
+                    sendMessage(new IntWritable(predecessor), ShortestPathData.getPingMessage(combinedMessages.get(predecessor), id));
                 }
                 combinedMessages.clear();
 
                 if(updateCount > 0 ) {
-                    this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(1));
+                    this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(updateCount));
                 }
 
                 break;
             case BETWEENESSS_POPULATE:
                 // save number of shortest path which this node is involved in and populate the info to the next appropriate predecessor
-                Map<String, ShortestPathList> shortestPaths = vertexValue.getPathDataMap();
+                Map<Integer, ShortestPathList> shortestPaths = vertexValue.getPathDataMap();
 
 
                 int shortestPathcount = 0;
                 // process incoming messages
                 for (ShortestPathData message : messages) {
                     // this is a combined message. iterate over each list entry
-                    for(String source : message.getShortestPathSources()){
+                    for(Integer source : message.getShortestPathSources()){
                         // each combined entry means this node is involved in a shortest path
                         ++shortestPathcount;
 
@@ -148,9 +149,9 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                         // notify the next predecessors that it is involved in a shortest path for the specified source if we are not directly the source
                         if(!id.equals(source)) {
                             ShortestPathList shortestPathList = shortestPaths.get(source);
-                            for (String predecessor : shortestPathList.getPredecessors()) {
+                            for (Integer predecessor : shortestPathList.getPredecessors()) {
                                 if(!combinedMessages.containsKey(predecessor)) {
-                                    combinedMessages.put(predecessor, new ArrayList<String>());
+                                    combinedMessages.put(predecessor, new ArrayList<Integer>());
                                 }
                                 combinedMessages.get(predecessor).add(source);
                                 updateCount++;
@@ -160,8 +161,8 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 }
 
                 // send combined messages
-                for(String predecessor : combinedMessages.keySet()){
-                    sendMessage(new Text(predecessor), ShortestPathData.getPingMessage(combinedMessages.get(predecessor), id));
+                for(Integer predecessor : combinedMessages.keySet()){
+                    sendMessage(new IntWritable(predecessor), ShortestPathData.getPingMessage(combinedMessages.get(predecessor), id));
                 }
                 combinedMessages.clear();
 
@@ -170,7 +171,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 }
 
                 if(updateCount > 0) {
-                    this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(1));
+                    this.aggregate(BetweenessMasterCompute.UPDATE_COUNT_AGG, new IntWritable(updateCount));
                 }
 
                 break;
@@ -191,7 +192,7 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
 
                 // calculate Closeness centrality
                 long closenessCentrality = 0;
-                for(String source : vertexValue.getPathDataMap().keySet()){
+                for(Integer source : vertexValue.getPathDataMap().keySet()){
                     closenessCentrality += vertexValue.getPathDataMap().get(source).getDistance();
                 }
 
@@ -200,9 +201,9 @@ public class BetweenessComputation extends AbstractComputation<Text, BetweenessD
                 // calculate avg shortest path length
                 long sumShortestPath = 0;
                 int numberOfShortestPath = 0;
-                for(String source : vertexValue.getPathDataMap().keySet()){
+                for(Integer source : vertexValue.getPathDataMap().keySet()){
                     ShortestPathList shortestPathList = vertexValue.getPathDataMap().get(source);
-                    for(String pred: shortestPathList.getPredecessors()){
+                    for(Integer pred: shortestPathList.getPredecessors()){
                         sumShortestPath += shortestPathList.getDistance();
                         numberOfShortestPath++;
                     }

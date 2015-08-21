@@ -1,7 +1,6 @@
 
 package ml.grafos.okapi.graphs.betweeness;
 
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import java.io.DataInput;
@@ -18,12 +17,12 @@ public class BetweenessData implements Writable {
     private long closeness;
     private double avgShortestPathDistance;
     private BigInteger numPaths;
-    private Map<String, ShortestPathList> pathDataMap;
+    private Map<Integer, ShortestPathList> pathDataMap;
 
     public BetweenessData() {
         // because we have a reflexiv shortest path
         numPaths = BigInteger.valueOf(1);
-        pathDataMap = new HashMap<String, ShortestPathList>();
+        pathDataMap = new HashMap<Integer, ShortestPathList>();
     }
 
     @Override
@@ -38,8 +37,8 @@ public class BetweenessData implements Writable {
 
         out.writeInt(pathDataMap.size());
 
-        for (Entry<String, ShortestPathList> entry : pathDataMap.entrySet()) {
-            Text.writeString(out, entry.getKey());
+        for (Entry<Integer, ShortestPathList> entry : pathDataMap.entrySet()) {
+            out.writeInt(entry.getKey());
             entry.getValue().write(out);
         }
 
@@ -61,7 +60,7 @@ public class BetweenessData implements Writable {
         int size = in.readInt();
 
         for (int i = 0; i < size; i++) {
-            String key = Text.readString(in);
+            Integer key= in.readInt();
             ShortestPathList list = new ShortestPathList();
             list.readFields(in);
             pathDataMap.put(key, list);
@@ -89,7 +88,7 @@ public class BetweenessData implements Writable {
     }
 
 
-    public Map<String, ShortestPathList> getPathDataMap() {
+    public Map<Integer, ShortestPathList> getPathDataMap() {
         return pathDataMap;
     }
 
@@ -121,7 +120,7 @@ public class BetweenessData implements Writable {
         this.closeness = closeness;
     }
 
-    public void setPathDataMap(Map<String, ShortestPathList> pathDataMap) {
+    public void setPathDataMap(Map<Integer, ShortestPathList> pathDataMap) {
         this.pathDataMap = pathDataMap;
     }
 

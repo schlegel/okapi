@@ -17,7 +17,6 @@
  */
 package ml.grafos.okapi.graphs.betweeness;
 
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import java.io.DataInput;
@@ -35,14 +34,14 @@ public class ShortestPathData implements Writable {
     /**
      * The source node of the path.
      */
-    private String source;
+    private Integer source;
 
     /**
      * the predecessor OR successor node (for shortest path OR pair betweeness ping).
      */
-    private String from;
+    private Integer from;
 
-    private ArrayList<String> shortestPathSources;
+    private ArrayList<Integer> shortestPathSources;
 
     /**
      * The Default Constructor for PathData:
@@ -56,8 +55,8 @@ public class ShortestPathData implements Writable {
      */
     public ShortestPathData() {
         distance = Integer.MAX_VALUE;
-        source = "-1";
-        from = "-1";
+        source = -1;
+        from = -1;
         shortestPathSources = new ArrayList<>();
     }
 
@@ -69,7 +68,7 @@ public class ShortestPathData implements Writable {
      * @param distance The distance from the source to the predecessor.
      * @return a New PathData Object
      */
-    public static ShortestPathData createShortestPathMessage(String source, String from, int distance) {
+    public static ShortestPathData createShortestPathMessage(Integer source, Integer from, int distance) {
         ShortestPathData data = new ShortestPathData();
         data.setSource(source);
         data.setFrom(from);
@@ -77,7 +76,7 @@ public class ShortestPathData implements Writable {
         return data;
     }
 
-    public static ShortestPathData getPingMessage(ArrayList<String> sources, String from) {
+    public static ShortestPathData getPingMessage(ArrayList<Integer> sources, Integer from) {
         ShortestPathData data = new ShortestPathData();
         data.setShortestPathSources(sources);
         data.setFrom(from);
@@ -88,8 +87,8 @@ public class ShortestPathData implements Writable {
 
     @Override
     public void write(DataOutput out) throws IOException {
-        Text.writeString(out, source);
-        Text.writeString(out, from);
+        out.writeInt(source);
+        out.writeInt(from);
         out.writeInt(distance);
 
         if(shortestPathSources != null) {
@@ -98,21 +97,21 @@ public class ShortestPathData implements Writable {
             out.writeInt(0);
         }
 
-        for(String source : shortestPathSources) {
-            Text.writeString(out, source);
+        for(Integer sourceEntry : shortestPathSources) {
+            out.writeInt(sourceEntry);
         }
     }
 
     @Override
     public void readFields(DataInput in) throws IOException {
-        source = Text.readString(in);
-        from = Text.readString(in);
+        source = in.readInt();
+        from = in.readInt();
         distance = in.readInt();
 
         int size = in.readInt();
         shortestPathSources = new ArrayList<>();
         for (int i = 0; i < size; i++) {
-            shortestPathSources.add(Text.readString(in));
+            shortestPathSources.add(in.readInt());
         }
     }
 
@@ -139,7 +138,7 @@ public class ShortestPathData implements Writable {
      *
      * @return The source value.
      */
-    public String getSource() {
+    public Integer getSource() {
         return source;
     }
 
@@ -148,7 +147,7 @@ public class ShortestPathData implements Writable {
      *
      * @param source The value to set the source to.
      */
-    public void setSource(String source) {
+    public void setSource(Integer source) {
         this.source = source;
     }
 
@@ -157,7 +156,7 @@ public class ShortestPathData implements Writable {
      *
      * @return The value of from.
      */
-    public String getFrom() {
+    public Integer getFrom() {
         return from;
     }
 
@@ -166,15 +165,15 @@ public class ShortestPathData implements Writable {
      *
      * @param from The value to set from to.
      */
-    public void setFrom(String from) {
+    public void setFrom(Integer from) {
         this.from = from;
     }
 
-    public void setShortestPathSources(ArrayList<String> shortestPathSources) {
+    public void setShortestPathSources(ArrayList<Integer> shortestPathSources) {
         this.shortestPathSources = shortestPathSources;
     }
 
-    public ArrayList<String> getShortestPathSources() {
+    public ArrayList<Integer> getShortestPathSources() {
         return shortestPathSources;
     }
 }

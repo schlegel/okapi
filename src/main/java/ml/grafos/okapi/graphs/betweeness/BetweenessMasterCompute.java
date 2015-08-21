@@ -40,7 +40,6 @@ public class BetweenessMasterCompute extends DefaultMasterCompute {
      */
     public static final String UPDATE_COUNT_AGG = "com.sotera.graph.singbetweenness.UPDATE_COUNT_AGG";
 
-
     /**
      * Variable that tracks the current state of computation.
      */

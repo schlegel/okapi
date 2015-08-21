@@ -18,7 +18,6 @@
 package ml.grafos.okapi.graphs.betweeness;
 
 import com.google.common.base.Joiner;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import java.io.DataInput;
@@ -43,14 +42,14 @@ public class ShortestPathList implements Writable {
     /**
      * The map of predecessor to number of shortest paths from source to that predecessor
      */
-    private Set<String> predecessors;
+    private Set<Integer> predecessors;
 
     /**
      * Create a new shortest empty Path List
      */
     public ShortestPathList() {
         distance = Integer.MAX_VALUE;
-        setPredecessors(new HashSet<String>());
+        setPredecessors(new HashSet<Integer>());
     }
 
     /**
@@ -94,8 +93,8 @@ public class ShortestPathList implements Writable {
     public void write(DataOutput out) throws IOException {
         out.writeInt(distance);
         out.writeInt(this.predecessors.size());
-        for (String entry : predecessors) {
-            Text.writeString(out, entry);
+        for (Integer entry : predecessors) {
+            out.writeInt(entry);
         }
 
     }
@@ -106,7 +105,7 @@ public class ShortestPathList implements Writable {
         setDistance(in.readInt());
         int size = in.readInt();
         for (int i = 0; i < size; i++) {
-            predecessors.add(Text.readString(in));
+            predecessors.add(in.readInt());
         }
     }
 
@@ -126,11 +125,11 @@ public class ShortestPathList implements Writable {
         this.distance = distance;
     }
 
-    public Set<String> getPredecessors() {
+    public Set<Integer> getPredecessors() {
         return predecessors;
     }
 
-    public void setPredecessors(Set<String> predecessors) {
+    public void setPredecessors(Set<Integer> predecessors) {
         this.predecessors = predecessors;
     }
 

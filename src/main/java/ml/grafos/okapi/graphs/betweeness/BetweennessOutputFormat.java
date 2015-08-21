@@ -17,12 +17,9 @@
  */
 package ml.grafos.okapi.graphs.betweeness;
 
-import com.google.common.base.Charsets;
-import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
@@ -33,10 +30,7 @@ import java.util.Set;
 /**
  * Writes the approximated betweenness value for each vertex
  */
-public class BetweennessOutputFormat extends TextVertexOutputFormat<Text, BetweenessData, Text> {
-
-    private HashFunction hf = Hashing.md5();
-
+public class BetweennessOutputFormat extends TextVertexOutputFormat<IntWritable, BetweenessData, IntWritable> {
     @Override
     public TextVertexWriter createVertexWriter(TaskAttemptContext context) throws IOException,
             InterruptedException {
@@ -44,45 +38,20 @@ public class BetweennessOutputFormat extends TextVertexOutputFormat<Text, Betwee
     }
 
     public class SBVertexWriter extends TextVertexWriter {
-
-        // return betweenes and cluster id
-        public void writeVertex(Vertex<Text, BetweenessData, Text> vertex) throws IOException, InterruptedException {
+        @Override
+        public void writeVertex(Vertex<IntWritable, BetweenessData, IntWritable> vertex) throws IOException, InterruptedException {
             BetweenessData resultdata = vertex.getValue();
 
             // get cluster id
-            Set<String> inferredNeighbours = resultdata.getPathDataMap().keySet();
-            String clusterId = null;
+            Set<Integer> inferredNeighbours = resultdata.getPathDataMap().keySet();
+            Integer clusterId = Integer.MAX_VALUE;
 
-            for(String neighbour : inferredNeighbours) {
-                clusterId = minString(clusterId , neighbour);
+            for(Integer neighbour : inferredNeighbours) {
+                clusterId = Math.min(clusterId , neighbour);
             }
 
-            HashCode resultID = hf.newHasher().putString(clusterId, Charsets.UTF_8).hash();
-
-            // FORMAT: <URL> <NUMBEROFSHORTESTPATHS> <BETWEENESSRRESULT> <CLUSTERID> <NUMBEROFMEMBERS> <CLOSENESS> <AVGSHORTESTPATHLENGTH>
-            getRecordWriter().write(new Text(vertex.getId().toString()), new Text(resultdata.getNumPaths().toString() + ", " + String.format("%.32f", resultdata.getBetweenness())   + ", " + resultID + ", " + resultdata.getPathDataMap().size() + ", " +  resultdata.getCloseness() + ", " + String.format("%.4f", resultdata.getAvgShortestPathDistance())));
-        }
-    }
-
-    private String minString(String a, String b) {
-        if(a == null && b != null) {
-            return b;
-        } else if (a != null && b == null ) {
-            return a;
-        } else if(a == null && b == null) {
-            return null;
-        }
-
-        int compare = a.compareTo(b);
-        // b is smaller than a
-        if(compare < 0) {
-            return a;
-            // a is smaller than v
-        } else if(compare > 0) {
-            return b;
-            // both are equal
-        } else {
-            return a;
+            // FORMAT: <ID> <NUMBEROFSHORTESTPATHS> <BETWEENESSRRESULT> <CLUSTERID> <NUMBEROFMEMBERS> <CLOSENESS> <AVGSHORTESTPATHLENGTH>
+            getRecordWriter().write(new Text(vertex.getId().toString()), new Text(resultdata.getNumPaths().toString() + ", " + String.format("%.32f", resultdata.getBetweenness())   + ", " + clusterId + ", " + resultdata.getPathDataMap().size() + ", " +  resultdata.getCloseness() + ", " + String.format("%.4f", resultdata.getAvgShortestPathDistance())));
         }
     }
 }
