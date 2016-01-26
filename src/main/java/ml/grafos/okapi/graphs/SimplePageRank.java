@@ -15,10 +15,10 @@
  */
 package ml.grafos.okapi.graphs;
 
-import de.unipassau.fim.dimis.schlegel.types.WritableLabel;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
 
 /**
@@ -29,40 +29,61 @@ import org.apache.log4j.Logger;
  *
  * The maximum number of supersteps is configurable.
  */
-public class SimplePageRank extends BasicComputation<WritableLabel, DoubleWritable, DoubleWritable, DoubleWritable> {
-  /** Default number of supersteps */
-  public static final int MAX_SUPERSTEPS_DEFAULT = 30;
-  /** Property name for number of supersteps */
-  public static final String MAX_SUPERSTEPS = "pagerank.max.supersteps";
+public class SimplePageRank extends BasicComputation<IntWritable, DoubleWritable, IntWritable, DoubleWritable> {
+    /** Default number of supersteps */
+    public static final int MAX_SUPERSTEPS_DEFAULT = 41;
+    /** Property name for number of supersteps */
+    public static final String MAX_SUPERSTEPS = "pagerank.max.supersteps";
 
-  /** Logger */
-  private static final Logger LOG =
-    Logger.getLogger(SimplePageRank.class);
+    /** Logger */
+    private static final Logger LOG =
+            Logger.getLogger(SimplePageRank.class);
 
-  @Override
-  public void compute(Vertex<WritableLabel, DoubleWritable, DoubleWritable> vertex,
-      Iterable<DoubleWritable> messages) {
-    if (getSuperstep() == 0) {
-      vertex.setValue(new DoubleWritable(1f / getTotalNumVertices()));
+    @Override
+    public void compute(Vertex<IntWritable, DoubleWritable, IntWritable> vertex, Iterable<DoubleWritable> messages) {
+
+
+        if (getSuperstep() == 0) {
+            // vertex can have only outgoing edges. so we cant access the value of the edges. send value so they get it in superstep 1
+            if(vertex.getEdges().iterator().hasNext()) {
+                int numberVerticesInCluster = vertex.getEdges().iterator().next().getValue().get();
+                sendMessageToAllEdges(vertex, new DoubleWritable(numberVerticesInCluster));
+            }
+        }
+
+        if (getSuperstep() == 1) {
+            double numberVerticesInCluster;
+
+            // number of vertices in cluster is either in the edge data or in an incoming message
+            if(vertex.getEdges().iterator().hasNext()) {
+                numberVerticesInCluster = vertex.getEdges().iterator().next().getValue().get();
+            } else {
+                numberVerticesInCluster = messages.iterator().next().get();
+            }
+
+            vertex.setValue(new DoubleWritable(numberVerticesInCluster));
+
+            long edges = vertex.getNumEdges();
+            sendMessageToAllEdges(vertex, new DoubleWritable((1f / numberVerticesInCluster) / edges));
+        }
+
+        if (getSuperstep() > 1) {
+            double sum = 0;
+            for (DoubleWritable message : messages) {
+                sum += message.get();
+            }
+
+            // vertext value holds the number of vertices in the cluster
+            DoubleWritable pageRankValue = new DoubleWritable((0.15f / vertex.getValue().get()) + 0.85f * sum);
+
+            if (getSuperstep() < getContext().getConfiguration().getInt(MAX_SUPERSTEPS, MAX_SUPERSTEPS_DEFAULT)) {
+                long edges = vertex.getNumEdges();
+                sendMessageToAllEdges(vertex, new DoubleWritable(pageRankValue.get() / edges));
+            } else {
+                // set vertex value to the actual pagerank value
+                vertex.setValue(pageRankValue);
+                vertex.voteToHalt();
+            }
+        }
     }
-    if (getSuperstep() >= 1) {
-      double sum = 0;
-      for (DoubleWritable message : messages) {
-        sum += message.get();
-      }
-      DoubleWritable vertexValue =
-        new DoubleWritable((0.15f / getTotalNumVertices()) + 0.85f * sum);
-      vertex.setValue(vertexValue);
-    }
-
-    if (getSuperstep() < getContext().getConfiguration().getInt(
-      MAX_SUPERSTEPS, MAX_SUPERSTEPS_DEFAULT)) {
-
-      long edges = vertex.getNumEdges();
-      sendMessageToAllEdges(vertex,
-          new DoubleWritable(vertex.getValue().get() / edges));
-    } else {
-      vertex.voteToHalt();
-    }
-  }
 }
